@@ -7,7 +7,7 @@ load_dotenv()
 # Model configuration
 MODEL_GPT = "gpt-4o-mini"
 MODEL_LLAMA = "llama3.2"
-MODEL_CLAUDE = "claude-3.5-sonnet"
+MODEL_CLAUDE = "claude-3-5-sonnet-latest"
 
 # Language options
 LANGUAGES = ["English", "Spanish"]

@@ -2,6 +2,7 @@ from rich.markdown import Markdown
 from rich.console import Console
 import anthropic
 import openai
+from config import MODEL_CLAUDE
 
 console = Console()
 
@@ -10,7 +11,7 @@ def print_markdown_response(text):
     md = Markdown(text)
     console.print(md)
 
-def translate_text(text, target_language, model="claude-3.5-sonnet", api_key=None):
+def translate_text(text, target_language, model=MODEL_CLAUDE, api_key=None):
     """
     Translate text to target language using Claude
     
