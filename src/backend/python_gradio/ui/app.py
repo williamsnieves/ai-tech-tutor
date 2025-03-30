@@ -1,9 +1,11 @@
 import gradio as gr
-from tutor import generate_explanation
-from utils import translate_text, text_to_speech
-from config import ANTHROPIC_API_KEY, LANGUAGES
+from core.tutor import TechTutor
+from config.settings import LANGUAGES
 import traceback
 import os
+
+# Initialize the tutor
+tutor = TechTutor()
 
 def process_input(query, is_code, code_language, model_choice, output_language, voice_choice):
     """
@@ -21,27 +23,22 @@ def process_input(query, is_code, code_language, model_choice, output_language, 
         tuple: (text_response, audio_path)
     """
     try:
-        language = code_language if is_code else "English"
+        # Process query using tutor
+        result = tutor.process_query(
+            query=query,
+            model=model_choice,
+            target_language=output_language if output_language != "English" else None,
+            generate_audio=True
+        )
         
-        # Generate explanation using selected model
-        response = generate_explanation(query, is_code, language, model_choice)
-        
-        # Translate if needed
-        if output_language != "English":
-            response = translate_text(
-                response, 
-                output_language, 
-                api_key=ANTHROPIC_API_KEY
-            )
-        
-        # Generate audio
-        audio_path = text_to_speech(response, voice=voice_choice)
+        response_text = result["response"]
+        audio_path = result.get("audio_path")
         
         # Ensure we have a valid audio path or None for Gradio
         if audio_path is None:
-            return response + "\n\n*Audio generation failed*", None
+            return response_text + "\n\n*Audio generation failed*", None
             
-        return response, audio_path
+        return response_text, audio_path
     except Exception as e:
         error_msg = f"Error: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
         return error_msg, None
