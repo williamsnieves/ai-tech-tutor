@@ -1,5 +1,4 @@
 openai
-ollama
 requests
 beautifulsoup4
 python-dotenv
@@ -9,4 +8,5 @@ gradio
 anthropic
 Pillow
 numpy
+ollama
 soundfile 
