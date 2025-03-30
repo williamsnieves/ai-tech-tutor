@@ -6,4 +6,7 @@ python-dotenv
 ipython
 rich
 gradio
-anthropic 
+anthropic
+Pillow
+numpy
+soundfile 
