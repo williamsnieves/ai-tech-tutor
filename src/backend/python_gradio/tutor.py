@@ -3,6 +3,7 @@ import ollama
 import anthropic
 from config import MODEL_GPT, MODEL_LLAMA, MODEL_CLAUDE, OPENAI_API_KEY, ANTHROPIC_API_KEY
 from utils import print_markdown_response
+from tools import tools, handle_tool_calls
 
 # Initialize API clients
 openai.api_key = OPENAI_API_KEY
@@ -16,6 +17,11 @@ Your role is to provide clear and structured explanations in Markdown format abo
 - General technology topics, including AI, software development, networking, hardware, and emerging technologies.
 - Comparisons between technologies, frameworks, or programming paradigms.
 - Recommendations on tools, best practices, and industry trends.
+
+You have access to various tools to help provide better assistance:
+- get_terraform_guide: Get a comprehensive guide for Terraform setup and usage
+- get_github_trending_repos: Get trending GitHub repositories for any technical topic, helping users discover popular and relevant projects
+
 Your responses must be **structured, educational, and formatted in Markdown**. 
 Use headings, bullet points, code blocks, and bold/italic text where appropriate."""
 
@@ -37,8 +43,27 @@ def get_explanation_openai(query, is_code, language, model=MODEL_GPT):
     """Generates an explanation using OpenAI models."""
     response = openai.chat.completions.create(
         model=model,
-        messages=messages_for(query, is_code, language)
+        messages=messages_for(query, is_code, language),
+        tools=tools,
+        tool_choice="auto"
     )
+    
+    # Handle tool calls if any
+    if response.choices[0].message.tool_calls:
+        tool_messages, tool_result = handle_tool_calls(response.choices[0].message.tool_calls)
+        
+        # Add tool results to the conversation
+        messages = messages_for(query, is_code, language)
+        messages.append(response.choices[0].message)
+        messages.extend(tool_messages)
+        
+        # Get final response
+        final_response = openai.chat.completions.create(
+            model=model,
+            messages=messages
+        )
+        return final_response.choices[0].message.content
+    
     return response.choices[0].message.content
 
 # Get Llama Response
