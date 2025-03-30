@@ -37,6 +37,10 @@ def process_input(query, is_code, code_language, model_choice, output_language, 
         # Generate audio
         audio_path = text_to_speech(response, voice=voice_choice)
         
+        # Ensure we have a valid audio path or None for Gradio
+        if audio_path is None:
+            return response + "\n\n*Audio generation failed*", None
+            
         return response, audio_path
     except Exception as e:
         error_msg = f"Error: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
@@ -96,7 +100,7 @@ def create_interface():
                 audio_output = gr.Audio(
                     label="Audio Explanation",
                     type="filepath",
-                    autoplay=True  # Enable autoplay
+                    autoplay=True
                 )
         
         # Set up interactions

@@ -35,8 +35,8 @@ def text_to_speech(text, voice="onyx"):
         )
         
         # Create a temporary file to store the audio
-        temp_dir = tempfile.gettempdir()
-        output_path = os.path.join(temp_dir, "output_audio.mp3")
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+        output_path = temp_file.name
         
         # Save the audio content to the file
         with open(output_path, "wb") as f:
