@@ -41,4 +41,8 @@ ENV/
 .env
 
 # Gradio
-.gradio/ 
+.gradio/
+
+# macOS system files
+.DS_Store
+**/.DS_Store 
