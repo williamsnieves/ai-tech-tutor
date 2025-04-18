@@ -12,15 +12,17 @@ pyarrow>=14.0.0  # Para soporte de Parquet
 numpy<2.0.0  # Force numpy 1.x for compatibility
 
 # Model inference
-torch>=2.0.0
-transformers>=4.36.0
-accelerate>=0.24.0
-sentencepiece>=0.1.99
+torch>=2.2.0  # CPU-only version
+transformers>=4.37.0
+accelerate>=0.27.0
+bitsandbytes>=0.41.1
+vllm>=0.3.0; platform_system!="Darwin"  # Only install vllm on non-macOS systems
 
 # Utilidades
 python-dotenv>=1.0.0
 rich>=13.0.0
 tqdm>=4.65.0
+psutil>=5.9.0  # For memory monitoring
 
 # Testing
 pytest>=7.0.0
@@ -28,6 +30,6 @@ pytest-cov>=4.0.0
 
 # Desarrollo
 black>=23.0.0
-isort>=5.12.0
+isort>=5.0.0
 flake8>=6.0.0
 mypy>=1.0.0 

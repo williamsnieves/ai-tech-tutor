@@ -1,0 +1,92 @@
+[
+  {
+    "company_id": "COMP847",
+    "name": "Quantum Dynamics Inc",
+    "industry": "Technology",
+    "revenue": 12500000.0,
+    "employees": 145,
+    "location": "Boston, MA",
+    "founded_year": 2012
+  },
+  {
+    "company_id": "COMP392",
+    "name": "BlueWave Healthcare",
+    "industry": "Healthcare",
+    "revenue": 8750000.0,
+    "employees": 230,
+    "location": "Chicago, IL",
+    "founded_year": 2008
+  },
+  {
+    "company_id": "COMP573",
+    "name": "Alpine Manufacturing Co",
+    "industry": "Manufacturing",
+    "revenue": 45000000.0,
+    "employees": 520,
+    "location": "Detroit, MI",
+    "founded_year": 1995
+  },
+  {
+    "company_id": "COMP164",
+    "name": "EcoSmart Solutions",
+    "industry": "Environmental Services",
+    "revenue": 3200000.0,
+    "employees": 42,
+    "location": "Portland, OR",
+    "founded_year": 2017
+  },
+  {
+    "company_id": "COMP925",
+    "name": "Digital Frontier Systems",
+    "industry": "Software",
+    "revenue": 28000000.0,
+    "employees": 180,
+    "location": "Seattle, WA",
+    "founded_year": 2010
+  },
+  {
+    "company_id": "COMP416",
+    "name": "Global Logistics Partners",
+    "industry": "Transportation",
+    "revenue": 67500000.0,
+    "employees": 890,
+    "location": "Miami, FL",
+    "founded_year": 2001
+  },
+  {
+    "company_id": "COMP738",
+    "name": "Pinnacle Financial Group",
+    "industry": "Financial Services",
+    "revenue": 92000000.0,
+    "employees": 340,
+    "location": "New York, NY",
+    "founded_year": 1998
+  },
+  {
+    "company_id": "COMP291",
+    "name": "Sunset Foods Corp",
+    "industry": "Food & Beverage",
+    "revenue": 15800000.0,
+    "employees": 275,
+    "location": "Los Angeles, CA",
+    "founded_year": 2005
+  },
+  {
+    "company_id": "COMP654",
+    "name": "BuildRight Construction",
+    "industry": "Construction",
+    "revenue": 33600000.0,
+    "employees": 420,
+    "location": "Denver, CO",
+    "founded_year": 1992
+  },
+  {
+    "company_id": "COMP583",
+    "name": "Nova Energy Solutions",
+    "industry": "Energy",
+    "revenue": 51200000.0,
+    "employees": 630,
+    "location": "Houston, TX",
+    "founded_year": 2003
+  }
+]

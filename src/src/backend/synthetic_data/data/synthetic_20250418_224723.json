@@ -1,0 +1,47 @@
+[
+  {
+    "company_id": "COMP247",
+    "name": "DataFlow Analytics",
+    "industry": "Software",
+    "revenue": 3750000.0,
+    "employees": 85,
+    "location": "Boston, MA",
+    "founded_year": 2016
+  },
+  {
+    "company_id": "COMP892",
+    "name": "Meridian Healthcare Solutions",
+    "industry": "Healthcare",
+    "revenue": 12500000.0,
+    "employees": 230,
+    "location": "Chicago, IL",
+    "founded_year": 2009
+  },
+  {
+    "company_id": "COMP456",
+    "name": "EcoFresh Foods",
+    "industry": "Food & Beverage",
+    "revenue": 8900000.0,
+    "employees": 145,
+    "location": "Portland, OR",
+    "founded_year": 2012
+  },
+  {
+    "company_id": "COMP673",
+    "name": "Quantum Manufacturing",
+    "industry": "Manufacturing",
+    "revenue": 25600000.0,
+    "employees": 420,
+    "location": "Detroit, MI",
+    "founded_year": 1995
+  },
+  {
+    "company_id": "COMP109",
+    "name": "Alpine Financial Group",
+    "industry": "Financial Services",
+    "revenue": 15800000.0,
+    "employees": 175,
+    "location": "New York, NY",
+    "founded_year": 2005
+  }
+]

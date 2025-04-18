@@ -1,108 +1,277 @@
 import os
 import json
-import pandas as pd
-import numpy as np
-from typing import Dict, List, Any, Optional
-from pathlib import Path
-import openai
-import anthropic
-from huggingface_hub import InferenceClient
+from typing import Dict, List, Any
+from datetime import datetime
 from src.backend.synthetic_data.config.settings import (
-    MODEL_GPT, MODEL_CLAUDE, MODEL_LLAMA, MODEL_PHI3, MODEL_GEMMA, MODEL_DEEPSEEK,
-    OPENAI_API_KEY, ANTHROPIC_API_KEY, HUGGINGFACE_API_KEY,
-    DATA_TYPES, OUTPUT_FORMATS, DEFAULT_NUM_RECORDS,
-    MAX_RECORDS_PER_REQUEST, MAX_RETRIES, RETRY_DELAY,
-    ERROR_MESSAGES, DEFAULT_NUM_SAMPLES, DEFAULT_MAX_TOKENS, DEFAULT_OUTPUT_DIR,
-    HUGGINGFACE_MODELS
+    MODEL_GPT,
+    MODEL_CLAUDE,
+    HUGGINGFACE_MODELS,
+    DEFAULT_NUM_SAMPLES,
+    DEFAULT_MAX_TOKENS,
+    DATA_TYPES
 )
+from src.backend.synthetic_data.api.huggingface_client import HuggingFaceClient
 from src.backend.synthetic_data.api.openai_client import OpenAIClient
 from src.backend.synthetic_data.api.anthropic_client import AnthropicClient
-from src.backend.synthetic_data.api.huggingface_client import HuggingFaceClient
-from rich.console import Console
-from datetime import datetime
-
-console = Console()
 
 class DataGenerator:
-    """Clase principal para generar datos sintéticos usando diferentes modelos de LLM."""
+    """Class for generating synthetic data using LLM models."""
     
     def __init__(self):
-        """Inicializa los clientes de API necesarios."""
+        """Initialize the data generator."""
+        self.huggingface_client = HuggingFaceClient()
         self.openai_client = OpenAIClient()
         self.anthropic_client = AnthropicClient()
-        self.huggingface_client = HuggingFaceClient()
-        
-    def _generate_prompt(self, data_type: str, num_samples: int, language: str = "en") -> str:
-        """Generates a prompt for the LLM model."""
-        if data_type not in DATA_TYPES:
-            raise ValueError(f"Unsupported data type: {data_type}")
-            
-        data_info = DATA_TYPES[data_type]
-        fields = ", ".join(data_info["fields"])
-        
-        # Map language to system message
-        system_messages = {
-            "en": "You are a synthetic data generator. Generate realistic and coherent data in JSON format. You MUST generate exactly the number of samples requested. Do not include any explanatory text, only the JSON array.",
-            "es": "Eres un generador de datos sintéticos. Genera datos realistas y coherentes en formato JSON. DEBES generar exactamente el número de muestras solicitado. No incluyas texto explicativo, solo el array JSON.",
-            "fr": "Vous êtes un générateur de données synthétiques. Générez des données réalistes et cohérentes au format JSON. Vous DEVEZ générer exactement le nombre d'échantillons demandé. N'incluez pas de texte explicatif, uniquement le tableau JSON.",
-            "de": "Sie sind ein synthetischer Datengenerator. Generieren Sie realistische und kohärente Daten im JSON-Format. Sie MÜSSEN genau die angeforderte Anzahl von Proben generieren. Fügen Sie keinen erklärenden Text hinzu, nur das JSON-Array."
-        }
-        
-        system_message = system_messages.get(language, system_messages["en"])
-        
-        return f"""
-        {system_message}
-        
-        Generate EXACTLY {num_samples} examples of {data_type} data with the following fields:
-        {fields}
-        
-        Requirements:
-        1. Generate EXACTLY {num_samples} items in the JSON array
-        2. Each item must contain all the specified fields
-        3. The data must be realistic and coherent
-        4. The output must be a valid JSON array
-        5. Do not include any explanatory text, only the JSON array
-        6. Do not include any markdown formatting
-        7. Do not include any code block indicators
-        8. The response must start with '[' and end with ']'
-        
-        Example format:
-        [
-            {{
-                "field1": "value1",
-                "field2": "value2"
-            }},
-            {{
-                "field1": "value3",
-                "field2": "value4"
-            }}
-        ]
+
+    def generate_data(
+        self,
+        data_type: str,
+        model: str,
+        sample_size: int = DEFAULT_NUM_SAMPLES,
+        max_tokens: int = DEFAULT_MAX_TOKENS
+    ) -> Dict[str, Any]:
         """
+        Generate synthetic data using the specified model.
         
+        Args:
+            data_type: Type of data to generate
+            model: Model to use for generation
+            sample_size: Number of samples to generate
+            max_tokens: Maximum number of tokens to generate
+            
+        Returns:
+            Dictionary containing the generated data or error information
+        """
+        try:
+            # Generate prompt
+            prompt = self._create_prompt(data_type, sample_size)
+            print(f"\n=== Generating with model: {model} ===")
+            print(f"Prompt: {prompt}")
+            
+            # Select the appropriate client based on the model
+            if model == MODEL_GPT:
+                response = self.openai_client.generate(prompt, max_tokens=max_tokens)
+            elif model == MODEL_CLAUDE:
+                response = self.anthropic_client.generate(prompt, max_tokens=max_tokens)
+            elif model in HUGGINGFACE_MODELS:
+                response = self.huggingface_client.generate(
+                    prompt=prompt,
+                    model=model,
+                    max_tokens=max_tokens
+                )
+            else:
+                return {
+                    "error": True,
+                    "message": f"Model {model} not supported. Available models: {[MODEL_GPT, MODEL_CLAUDE] + list(HUGGINGFACE_MODELS.keys())}"
+                }
+            
+            print(f"\nRaw response: {response}")
+            
+            # Parse response
+            try:
+                # Clean the response for Llama model
+                if model in HUGGINGFACE_MODELS:
+                    # Remove any markdown formatting
+                    response = response.replace("```json", "").replace("```", "").strip()
+                    # Remove any Llama-specific formatting
+                    response = response.replace("<s>", "").replace("</s>", "").strip()
+                    # Try to find the JSON array
+                    start_idx = response.find('[')
+                    end_idx = response.rfind(']')
+                    if start_idx != -1 and end_idx != -1:
+                        response = response[start_idx:end_idx+1]
+                
+                print(f"\nCleaned response: {response}")
+                
+                data = json.loads(response)
+                
+                # Validate the data structure
+                if not isinstance(data, list):
+                    return {
+                        "error": True,
+                        "message": "Response is not a JSON array",
+                        "raw_response": response
+                    }
+                
+                if len(data) != sample_size:
+                    print(f"\nWarning: Generated {len(data)} samples instead of requested {sample_size}")
+                    # Try to fix the data by repeating the last sample if needed
+                    if len(data) < sample_size:
+                        last_sample = data[-1] if data else {}
+                        while len(data) < sample_size:
+                            new_sample = last_sample.copy()
+                            # Modify some fields to make it unique
+                            for key in new_sample:
+                                if isinstance(new_sample[key], str):
+                                    new_sample[key] = f"{new_sample[key]}_{len(data)}"
+                                elif isinstance(new_sample[key], (int, float)):
+                                    new_sample[key] = new_sample[key] + len(data)
+                            data.append(new_sample)
+                        print(f"Fixed data by adding samples to reach {sample_size}")
+                    else:
+                        data = data[:sample_size]
+                        print(f"Fixed data by truncating to {sample_size}")
+                
+                # Save the data to a file
+                output_dir = "output"
+                filepath = self._save_data(data, "json", output_dir)
+                
+                return {
+                    "error": False,
+                    "data": data,
+                    "filepath": filepath
+                }
+            except json.JSONDecodeError as e:
+                print(f"\nJSON Decode Error: {str(e)}")
+                return {
+                    "error": True,
+                    "message": f"Failed to parse model response as JSON: {str(e)}",
+                    "raw_response": response
+                }
+                
+        except Exception as e:
+            print(f"\nError: {str(e)}")
+            return {
+                "error": True,
+                "message": str(e)
+            }
+    
+    def _create_prompt(self, data_type: str, sample_size: int) -> str:
+        """Create a prompt for data generation."""
+        if data_type == "health":
+            schema = """{
+                "patient_id": "string",
+                "age": "integer",
+                "gender": "string",
+                "diagnosis": "string",
+                "treatment": "string",
+                "admission_date": "string",
+                "discharge_date": "string"
+            }"""
+            example = """[
+    {
+        "patient_id": "PAT001",
+        "age": 45,
+        "gender": "Female",
+        "diagnosis": "Hypertension",
+        "treatment": "Lisinopril 10mg daily",
+        "admission_date": "2023-05-15",
+        "discharge_date": "2023-05-17"
+    },
+    {
+        "patient_id": "PAT002",
+        "age": 32,
+        "gender": "Male",
+        "diagnosis": "Type 2 Diabetes",
+        "treatment": "Metformin 500mg twice daily",
+        "admission_date": "2023-06-01",
+        "discharge_date": "2023-06-03"
+    }
+]"""
+        elif data_type == "business":
+            schema = """{
+                "company_id": "string",
+                "name": "string",
+                "industry": "string",
+                "revenue": "float",
+                "employees": "integer",
+                "location": "string",
+                "founded_year": "integer"
+            }"""
+            example = """[
+    {
+        "company_id": "COMP001",
+        "name": "TechCorp Solutions",
+        "industry": "Technology",
+        "revenue": 1500000.00,
+        "employees": 50,
+        "location": "San Francisco, CA",
+        "founded_year": 2015
+    },
+    {
+        "company_id": "COMP002",
+        "name": "GreenEnergy Systems",
+        "industry": "Renewable Energy",
+        "revenue": 2500000.00,
+        "employees": 75,
+        "location": "Austin, TX",
+        "founded_year": 2018
+    }
+]"""
+        else:  # e-commerce
+            schema = """{
+                "order_id": "string",
+                "customer_id": "string",
+                "product": "string",
+                "quantity": "integer",
+                "price": "float",
+                "order_date": "string",
+                "shipping_address": "string"
+            }"""
+            example = """[
+    {
+        "order_id": "ORD001",
+        "customer_id": "CUST001",
+        "product": "Wireless Headphones",
+        "quantity": 1,
+        "price": 99.99,
+        "order_date": "2023-07-15",
+        "shipping_address": "123 Main St, New York, NY 10001"
+    },
+    {
+        "order_id": "ORD002",
+        "customer_id": "CUST002",
+        "product": "Smart Watch",
+        "quantity": 2,
+        "price": 199.99,
+        "order_date": "2023-07-16",
+        "shipping_address": "456 Oak Ave, Los Angeles, CA 90001"
+    }
+]"""
+
+        return f"""Generate EXACTLY {sample_size} synthetic {data_type} records in JSON format.
+Each record should be realistic and follow this schema:
+{schema}
+
+IMPORTANT:
+1. You MUST generate EXACTLY {sample_size} records
+2. Return ONLY a JSON array containing exactly {sample_size} objects
+3. Do not include any additional text, markdown, or formatting
+4. Each object in the array must follow the schema exactly
+5. Generate realistic data that matches the {data_type} domain
+6. Each record should be unique and different from the others
+
+Here is an example of the expected format with realistic {data_type} data:
+{example}
+
+Now generate {sample_size} new, unique records following the same format but with different realistic data."""
+
     def _save_data(self, data: List[Dict[str, Any]], output_format: str, output_dir: str) -> str:
         """Save the generated data to a file."""
-        # Create output directory if it doesn't exist
-        os.makedirs(output_dir, exist_ok=True)
-        
-        # Generate filename with timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"synthetic_data_{timestamp}.{output_format}"
-        filepath = os.path.join(output_dir, filename)
-        
-        # Save data in the specified format
-        if output_format == "json":
-            with open(filepath, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
-        elif output_format == "csv":
-            df = pd.DataFrame(data)
-            df.to_csv(filepath, index=False)
-        elif output_format == "parquet":
-            df = pd.DataFrame(data)
-            df.to_parquet(filepath, index=False)
-        else:
-            raise ValueError(f"Unsupported output format: {output_format}")
+        try:
+            # Create the output directory if it doesn't exist
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+            data_dir = os.path.join(project_root, "src", "backend", "synthetic_data", "data")
+            os.makedirs(data_dir, exist_ok=True)
             
-        return filepath
+            # Generate filename with timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"synthetic_{timestamp}.{output_format}"
+            filepath = os.path.join(data_dir, filename)
+            
+            # Save the data
+            if output_format == "json":
+                with open(filepath, "w") as f:
+                    json.dump(data, f, indent=2)
+            else:
+                raise ValueError(f"Unsupported output format: {output_format}")
+            
+            print(f"\nData saved to: {filepath}")
+            return filepath
+            
+        except Exception as e:
+            print(f"\nError saving data: {str(e)}")
+            raise
         
     def generate(
         self,
@@ -111,36 +280,29 @@ class DataGenerator:
         num_samples: int = DEFAULT_NUM_SAMPLES,
         output_format: str = "json",
         max_tokens: int = DEFAULT_MAX_TOKENS,
-        output_dir: str = DEFAULT_OUTPUT_DIR,
         language: str = "en"
     ) -> Dict[str, Any]:
         """Generates synthetic data using the specified model."""
         try:
             # Calculate batch size based on token limit
-            # Assuming each sample uses roughly 100 tokens
-            batch_size = min(20, num_samples)  # Default to 20 samples per batch
+            batch_size = min(10, num_samples)  # Reduced batch size for open-source models
             total_batches = (num_samples + batch_size - 1) // batch_size
             all_data = []
             
-            console.print(f"[yellow]Generating {num_samples} samples in {total_batches} batches...[/yellow]")
+            print(f"Generating {num_samples} samples in {total_batches} batches...")
             
             for batch_num in range(total_batches):
                 current_batch_size = min(batch_size, num_samples - len(all_data))
-                console.print(f"[cyan]Processing batch {batch_num + 1}/{total_batches} ({current_batch_size} samples)...[/cyan]")
+                print(f"Processing batch {batch_num + 1}/{total_batches} ({current_batch_size} samples)...")
                 
-                prompt = self._generate_prompt(data_type, current_batch_size, language)
+                prompt = self._create_prompt(data_type, current_batch_size)
                 
-                if model == MODEL_GPT:
-                    response = self.openai_client.generate(prompt, max_tokens=max_tokens)
-                elif model == MODEL_CLAUDE:
-                    response = self.anthropic_client.generate(prompt, max_tokens=max_tokens)
-                elif model in [MODEL_LLAMA, MODEL_PHI3, MODEL_GEMMA, MODEL_DEEPSEEK]:
-                    # Get the actual model ID from HUGGINGFACE_MODELS
-                    model_id = HUGGINGFACE_MODELS[model]
-                    response = self.huggingface_client.generate(prompt, model=model_id, max_tokens=max_tokens)
-                else:
-                    raise ValueError(f"Unsupported model: {model}")
-                    
+                response = self.huggingface_client.generate(
+                    prompt=prompt,
+                    model=model,
+                    max_tokens=max_tokens
+                )
+                
                 # Try to parse the response as JSON
                 try:
                     # Clean the response to ensure it's a valid JSON array
@@ -150,6 +312,12 @@ class DataGenerator:
                     if response.endswith("```"):
                         response = response[:-3]
                     response = response.strip()
+                    
+                    # Try to find the JSON array in the response
+                    start_idx = response.find('[')
+                    end_idx = response.rfind(']')
+                    if start_idx != -1 and end_idx != -1:
+                        response = response[start_idx:end_idx+1]
                     
                     data = json.loads(response)
                     
@@ -183,134 +351,25 @@ class DataGenerator:
                             
                     all_data.extend(data)
                     
-                except json.JSONDecodeError:
+                except json.JSONDecodeError as e:
+                    print(f"JSON Decode Error: {str(e)}")
+                    print(f"Response: {response}")
                     return {
                         "status": "error",
-                        "message": "Response is not a valid JSON",
+                        "message": f"Response is not a valid JSON: {str(e)}",
                         "response": response
                     }
                     
-            # Save the complete dataset
-            filepath = self._save_data(all_data, output_format, output_dir)
-            
             return {
                 "status": "success",
                 "message": f"Successfully generated {len(all_data)} samples",
-                "filepath": filepath,
-                "data": all_data  # Include the data in the response
+                "data": all_data
             }
             
         except Exception as e:
+            print(f"Error: {str(e)}")
             return {
                 "status": "error",
                 "message": f"Error generating data: {str(e)}",
                 "response": ""
-            }
-
-class SyntheticDataGenerator:
-    def __init__(self, model: str):
-        self.model = model
-        self.console = Console()
-        self._initialize_clients()
-
-    def _initialize_clients(self):
-        """Initialize API clients based on the selected model."""
-        if self.model == "gpt":
-            self.client = OpenAIClient()
-        elif self.model == "claude":
-            self.client = AnthropicClient()
-        else:
-            self.client = HuggingFaceClient()
-
-    def _get_model_name(self) -> str:
-        """Get the appropriate model name based on the selected model."""
-        model_map = {
-            "gpt": MODEL_GPT,
-            "claude": MODEL_CLAUDE,
-            "llama": MODEL_LLAMA,
-            "phi3": MODEL_PHI3,
-            "gemma": MODEL_GEMMA
-        }
-        return model_map.get(self.model)
-
-    def _generate_prompt(self, data_type: str, fields: List[str], num_records: int) -> str:
-        """Generate a prompt for the LLM based on the data type and fields."""
-        return f"""
-        Generate {num_records} synthetic {data_type} records with the following fields: {', '.join(fields)}.
-        Each record should be realistic and follow the format:
-        {{
-            "field1": "value1",
-            "field2": "value2",
-            ...
-        }}
-        Return only the JSON array of records, no additional text.
-        """
-
-    def _validate_fields(self, data_type: str, fields: List[str]) -> bool:
-        """Validate that the requested fields are valid for the data type."""
-        valid_fields = DATA_TYPES.get(data_type, [])
-        return all(field in valid_fields for field in fields)
-
-    def _generate_data(self, data_type: str, fields: List[str], num_records: int) -> List[Dict[str, Any]]:
-        """Generate synthetic data using the selected model."""
-        if not self._validate_fields(data_type, fields):
-            raise ValueError(ERROR_MESSAGES["invalid_data_type"].format(list(DATA_TYPES.keys())))
-
-        prompt = self._generate_prompt(data_type, fields, num_records)
-        model_name = self._get_model_name()
-
-        for attempt in range(MAX_RETRIES):
-            try:
-                response = self.client.generate(
-                    model=model_name,
-                    prompt=prompt,
-                    max_tokens=4000
-                )
-                data = json.loads(response)
-                if isinstance(data, list) and len(data) == num_records:
-                    return data
-            except Exception as e:
-                self.console.print(f"[red]Attempt {attempt + 1} failed: {str(e)}[/red]")
-                if attempt < MAX_RETRIES - 1:
-                    time.sleep(RETRY_DELAY)
-                else:
-                    raise ValueError(ERROR_MESSAGES["generation_failed"])
-
-    def save_data(self, data: List[Dict[str, Any]], output_format: str, output_path: str):
-        """Save the generated data in the specified format."""
-        if output_format not in OUTPUT_FORMATS:
-            raise ValueError(ERROR_MESSAGES["invalid_output_format"].format(list(OUTPUT_FORMATS.keys())))
-
-        output_path = Path(output_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        if output_format == "json":
-            with open(output_path, "w") as f:
-                json.dump(data, f, indent=2)
-        elif output_format == "csv":
-            df = pd.DataFrame(data)
-            df.to_csv(output_path, index=False)
-        elif output_format == "parquet":
-            df = pd.DataFrame(data)
-            df.to_parquet(output_path, index=False)
-
-    def generate(
-        self,
-        data_type: str,
-        fields: List[str],
-        num_records: int = DEFAULT_NUM_RECORDS,
-        output_format: str = "json",
-        output_path: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
-        """Main method to generate and save synthetic data."""
-        if num_records > MAX_RECORDS_PER_REQUEST:
-            self.console.print(f"[yellow]Warning: Number of records exceeds maximum per request. Generating {MAX_RECORDS_PER_REQUEST} records instead.[/yellow]")
-            num_records = MAX_RECORDS_PER_REQUEST
-
-        data = self._generate_data(data_type, fields, num_records)
-        
-        if output_path:
-            self.save_data(data, output_format, output_path)
-            self.console.print(f"[green]Data successfully saved to {output_path}[/green]")
-        
-        return data 
+            } 
