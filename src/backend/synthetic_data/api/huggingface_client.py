@@ -11,8 +11,9 @@ from ..config.settings import (
 )
 import time
 from functools import lru_cache
+from .base_client import BaseClient
 
-class HuggingFaceClient:
+class HuggingFaceClient(BaseClient):
     """Client for interacting with Hugging Face models."""
     
     def __init__(self, api_key: Optional[str] = None):
@@ -108,17 +109,18 @@ class HuggingFaceClient:
             
         return self._pipeline_cache[model_id]
 
-    def test_model(self, model: str) -> str:
+    def test_model(self, model: Optional[str] = None) -> str:
         """
         Test if a model is working by generating a simple greeting.
         
         Args:
-            model: The model identifier to test
+            model: Optional model identifier to test (defaults to Llama)
             
         Returns:
             A simple greeting response
         """
         try:
+            model = model or MODEL_LLAMA
             print(f"\n=== Testing model: {model} ===")
             
             # Simple test prompt
@@ -142,7 +144,7 @@ class HuggingFaceClient:
             print(f"Traceback:\n{traceback.format_exc()}")
             raise
 
-    def generate(self, prompt: str, model: str, max_tokens: int = 1000) -> str:
+    def generate(self, prompt: str, model: str, max_tokens: int = 1000, **kwargs) -> str:
         """Generate text using the specified model."""
         try:
             # Get the model ID from the settings

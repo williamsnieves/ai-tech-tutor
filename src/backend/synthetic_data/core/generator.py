@@ -10,9 +10,12 @@ from src.backend.synthetic_data.config.settings import (
     DEFAULT_MAX_TOKENS,
     DATA_TYPES
 )
+from src.backend.synthetic_data.api.base_client import BaseClient
 from src.backend.synthetic_data.api.huggingface_client import HuggingFaceClient
 from src.backend.synthetic_data.api.openai_client import OpenAIClient
 from src.backend.synthetic_data.api.anthropic_client import AnthropicClient
+from .prompt_generator import PromptGenerator
+from .data_saver import DataSaver
 
 class DataGenerator:
     """Class for generating synthetic data using LLM models."""
@@ -22,6 +25,8 @@ class DataGenerator:
         self.huggingface_client = HuggingFaceClient()
         self.openai_client = OpenAIClient()
         self.anthropic_client = AnthropicClient()
+        self.prompt_generator = PromptGenerator()
+        self.data_saver = DataSaver()
 
     def _clean_json_response(self, response: str, model: str) -> str:
         """Clean and extract JSON from model response."""
@@ -71,7 +76,7 @@ class DataGenerator:
         """
         try:
             # Generate prompt
-            prompt = self._create_prompt(data_type, sample_size)
+            prompt = self.prompt_generator.create_prompt(data_type, sample_size)
             print(f"\n=== Generating with model: {model} ===")
             print(f"Prompt: {prompt}")
             
@@ -94,11 +99,28 @@ class DataGenerator:
             
             print(f"\nRaw response: {response}")
             
+            # Check if response is empty
+            if not response or not response.strip():
+                return {
+                    "error": True,
+                    "message": "Model returned an empty response. Please try again with different parameters.",
+                    "raw_response": response
+                }
+            
             # Parse response
             try:
                 # Clean the response
                 cleaned_response = self._clean_json_response(response, model)
                 print(f"\nCleaned response: {cleaned_response}")
+                
+                # Check if cleaned response is empty
+                if not cleaned_response or not cleaned_response.strip():
+                    return {
+                        "error": True,
+                        "message": "Cleaned response is empty. Please try again with different parameters.",
+                        "raw_response": response,
+                        "cleaned_response": cleaned_response
+                    }
                 
                 # Try to parse the JSON
                 try:
@@ -139,8 +161,9 @@ class DataGenerator:
                         print(f"Fixed data by truncating to {sample_size}")
                 
                 # Save the data to a file
-                output_dir = "data"  # Changed from "output" to "data" to match the correct directory
-                filepath = self._save_data(data, "json", output_dir)
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                data_dir = os.path.join(current_dir, "..", "data")
+                filepath = self.data_saver.save_data(data, "json", data_dir)
                 
                 return {
                     "error": False,
