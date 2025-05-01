@@ -37,7 +37,6 @@ wheels/
 logs/
 
 # Archivos de datos generados
-data/
 output/
 *.json
 *.csv
