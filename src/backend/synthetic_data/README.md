@@ -1,97 +1,94 @@
-# Generador de Datos Sintéticos con LLMs
+# Synthetic Data Generator with LLMs
 
-Este proyecto implementa un generador de datos sintéticos utilizando diferentes modelos de lenguaje (LLMs) como GPT, Claude, Llama, Phi-3 y Gemma. Permite generar datos realistas en varios formatos (JSON, CSV, Parquet) para diferentes dominios como negocios, salud, e-commerce y NLP.
+This project implements a synthetic data generator using different language models (LLMs) such as GPT, Claude, and Llama. It allows generating realistic data in various formats (JSON, CSV, Parquet) for different domains like business, healthcare, and e-commerce.
 
-## Características
+## Features
 
-- 🎯 Generación de datos sintéticos realistas
-- 🤖 Soporte para múltiples modelos de LLM:
+- 🎯 Generation of realistic synthetic data
+- 🤖 Support for multiple LLM models:
   - OpenAI GPT
   - Anthropic Claude
   - Meta Llama
-  - Microsoft Phi-3
-  - Google Gemma
-- 📊 Formatos de salida:
+- 📊 Output formats:
   - JSON
   - CSV
   - Parquet
-- 🏗️ Tipos de datos soportados:
-  - Datos de negocios
-  - Datos de salud
-  - Datos de e-commerce
-  - Datos de NLP
-- 🎨 Interfaz gráfica intuitiva con Gradio
+- 🏗️ Supported data types:
+  - Business data
+  - Healthcare data
+  - E-commerce data
+- 🎨 Intuitive graphical interface with Gradio
 
-## Estructura del Proyecto
+## Project Structure
 
 ```
 synthetic_data/
-├── api/                 # Clientes de API para diferentes LLMs
-├── config/             # Configuración y constantes
-├── core/               # Lógica principal del generador
-├── ui/                 # Interfaz de usuario con Gradio
-├── utils/              # Utilidades y funciones auxiliares
-├── main.py            # Punto de entrada de la aplicación
-├── requirements.txt   # Dependencias del proyecto
-└── README.md          # Documentación
+├── api/                 # API clients for different LLMs
+├── config/             # Configuration and constants
+├── core/               # Core generator logic
+├── ui/                 # Gradio user interface
+├── utils/              # Utilities and helper functions
+├── main.py            # Application entry point
+├── requirements.txt   # Project dependencies
+└── README.md          # Documentation
 ```
 
-## Requisitos
+## Requirements
 
 - Python 3.8+
-- Dependencias listadas en `requirements.txt`
+- Dependencies listed in `requirements.txt`
 
-## Instalación
+## Installation
 
-1. Clonar el repositorio:
+1. Clone the repository:
 ```bash
-git clone [URL_DEL_REPOSITORIO]
+git clone [REPOSITORY_URL]
 cd synthetic_data
 ```
 
-2. Crear y activar un entorno virtual:
+2. Create and activate a virtual environment:
 ```bash
 python -m venv venv
-source venv/bin/activate  # En Windows: venv\Scripts\activate
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-3. Instalar dependencias:
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-## Uso
+## Usage
 
-1. Iniciar la aplicación:
+1. Start the application:
 ```bash
 python main.py
 ```
 
-2. Acceder a la interfaz web:
-- La aplicación estará disponible en `http://localhost:7860`
-- Seleccionar el tipo de datos a generar
-- Elegir el modelo de LLM
-- Configurar el número de muestras y tokens
-- Seleccionar el formato de salida
-- Hacer clic en "Generate Data"
+2. Access the web interface:
+- The application will be available at `http://localhost:7860`
+- Select the type of data to generate
+- Choose the LLM model
+- Configure the number of samples and tokens
+- Select the output format
+- Click "Generate Data"
 
-## Configuración
+## Configuration
 
-El archivo `config/settings.py` contiene las configuraciones principales:
-- Modelos disponibles
-- Tipos de datos soportados
-- Formatos de salida
-- Valores por defecto
+The `config/settings.py` file contains the main configurations:
+- Available models
+- Supported data types
+- Output formats
+- Default values
 
-## Contribución
+## Contributing
 
-Las contribuciones son bienvenidas. Por favor, sigue estos pasos:
-1. Fork el repositorio
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
+Contributions are welcome. Please follow these steps:
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-## Licencia
+## License
 
-Este proyecto está licenciado bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para más detalles. 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 

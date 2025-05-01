@@ -7,9 +7,6 @@ from huggingface_hub import login
 from ..config.settings import (
     HUGGINGFACE_API_KEY,
     MODEL_LLAMA,
-    MODEL_PHI3,
-    MODEL_GEMMA,
-    MODEL_DEEPSEEK,
     HUGGINGFACE_MODELS
 )
 import time
@@ -41,35 +38,23 @@ class HuggingFaceClient:
         self.tokenizer = None
         self.current_model_id = None
 
-    @lru_cache(maxsize=4)  # Cache up to 4 different models
+    @lru_cache(maxsize=1)  # Cache only one model since we're only using Llama
     def _get_model(self, model_id: str):
         """Get cached model instance"""
         if model_id not in self._model_cache:
             print(f"Loading model {model_id}...")
             start_time = time.time()
             
-            # Special optimizations for Llama 3.2-1B
-            if "Llama-3.2-1B" in model_id:
-                model = AutoModelForCausalLM.from_pretrained(
-                    model_id,
-                    token=self.api_key,
-                    torch_dtype=torch.float32,
-                    device_map="cpu",
-                    low_cpu_mem_usage=True,
-                    use_cache=True,
-                    use_safetensors=True,
-                    trust_remote_code=True  # Required for Llama models
-                )
-            else:
-                model = AutoModelForCausalLM.from_pretrained(
-                    model_id,
-                    token=self.api_key,
-                    torch_dtype=torch.float32,
-                    device_map="cpu",
-                    low_cpu_mem_usage=True,
-                    use_cache=True,
-                    use_safetensors=True
-                )
+            model = AutoModelForCausalLM.from_pretrained(
+                model_id,
+                token=self.api_key,
+                torch_dtype=torch.float32,
+                device_map="cpu",
+                low_cpu_mem_usage=True,
+                use_cache=True,
+                use_safetensors=True,
+                trust_remote_code=True  # Required for Llama models
+            )
             
             # Optimize model for inference
             model.eval()
@@ -81,26 +66,19 @@ class HuggingFaceClient:
             
         return self._model_cache[model_id]
     
-    @lru_cache(maxsize=4)  # Cache up to 4 different tokenizers
+    @lru_cache(maxsize=1)  # Cache only one tokenizer since we're only using Llama
     def _get_tokenizer(self, model_id: str):
         """Get cached tokenizer instance"""
         if model_id not in self._tokenizer_cache:
             print(f"Loading tokenizer {model_id}...")
             start_time = time.time()
             
-            # Special optimizations for Llama 3.2-1B
-            if "Llama-3.2-1B" in model_id:
-                tokenizer = AutoTokenizer.from_pretrained(
-                    model_id,
-                    token=self.api_key,
-                    trust_remote_code=True  # Required for Llama models
-                )
-            else:
-                tokenizer = AutoTokenizer.from_pretrained(model_id, token=self.api_key)
-                
-            if tokenizer.pad_token is None:
-                tokenizer.pad_token = tokenizer.eos_token
-                
+            tokenizer = AutoTokenizer.from_pretrained(
+                model_id,
+                token=self.api_key,
+                trust_remote_code=True  # Required for Llama models
+            )
+            
             # Cache the tokenizer
             self._tokenizer_cache[model_id] = tokenizer
             print(f"Tokenizer loaded in {time.time() - start_time:.2f} seconds")

@@ -23,6 +23,33 @@ class DataGenerator:
         self.openai_client = OpenAIClient()
         self.anthropic_client = AnthropicClient()
 
+    def _clean_json_response(self, response: str, model: str) -> str:
+        """Clean and extract JSON from model response."""
+        # Remove any markdown formatting
+        response = response.replace("```json", "").replace("```", "").strip()
+        
+        # Remove any model-specific formatting
+        if model in HUGGINGFACE_MODELS:
+            response = response.replace("<s>", "").replace("</s>", "").strip()
+        
+        # Try to find the JSON array
+        start_idx = response.find('[')
+        end_idx = response.rfind(']')
+        
+        if start_idx != -1 and end_idx != -1:
+            response = response[start_idx:end_idx+1]
+        else:
+            # If no array found, try to find any JSON object
+            start_idx = response.find('{')
+            end_idx = response.rfind('}')
+            if start_idx != -1 and end_idx != -1:
+                response = response[start_idx:end_idx+1]
+                # If it's a single object, wrap it in an array
+                if not response.startswith('['):
+                    response = f"[{response}]"
+        
+        return response
+
     def generate_data(
         self,
         data_type: str,
@@ -69,28 +96,27 @@ class DataGenerator:
             
             # Parse response
             try:
-                # Clean the response for Llama model
-                if model in HUGGINGFACE_MODELS:
-                    # Remove any markdown formatting
-                    response = response.replace("```json", "").replace("```", "").strip()
-                    # Remove any Llama-specific formatting
-                    response = response.replace("<s>", "").replace("</s>", "").strip()
-                    # Try to find the JSON array
-                    start_idx = response.find('[')
-                    end_idx = response.rfind(']')
-                    if start_idx != -1 and end_idx != -1:
-                        response = response[start_idx:end_idx+1]
+                # Clean the response
+                cleaned_response = self._clean_json_response(response, model)
+                print(f"\nCleaned response: {cleaned_response}")
                 
-                print(f"\nCleaned response: {response}")
-                
-                data = json.loads(response)
+                # Try to parse the JSON
+                try:
+                    data = json.loads(cleaned_response)
+                except json.JSONDecodeError as e:
+                    # If parsing fails, try to fix common JSON issues
+                    cleaned_response = cleaned_response.replace("'", '"')  # Replace single quotes with double quotes
+                    cleaned_response = cleaned_response.replace("True", "true").replace("False", "false")  # Fix boolean values
+                    cleaned_response = cleaned_response.replace("None", "null")  # Fix null values
+                    data = json.loads(cleaned_response)
                 
                 # Validate the data structure
                 if not isinstance(data, list):
                     return {
                         "error": True,
                         "message": "Response is not a JSON array",
-                        "raw_response": response
+                        "raw_response": response,
+                        "cleaned_response": cleaned_response
                     }
                 
                 if len(data) != sample_size:
@@ -113,7 +139,7 @@ class DataGenerator:
                         print(f"Fixed data by truncating to {sample_size}")
                 
                 # Save the data to a file
-                output_dir = "output"
+                output_dir = "data"  # Changed from "output" to "data" to match the correct directory
                 filepath = self._save_data(data, "json", output_dir)
                 
                 return {
@@ -126,7 +152,8 @@ class DataGenerator:
                 return {
                     "error": True,
                     "message": f"Failed to parse model response as JSON: {str(e)}",
-                    "raw_response": response
+                    "raw_response": response,
+                    "cleaned_response": cleaned_response
                 }
                 
         except Exception as e:
@@ -249,9 +276,10 @@ Now generate {sample_size} new, unique records following the same format but wit
     def _save_data(self, data: List[Dict[str, Any]], output_format: str, output_dir: str) -> str:
         """Save the generated data to a file."""
         try:
-            # Create the output directory if it doesn't exist
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-            data_dir = os.path.join(project_root, "src", "backend", "synthetic_data", "data")
+            # Get the current file's directory
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            # Construct the data directory path relative to the current file
+            data_dir = os.path.join(current_dir, "..", "data")
             os.makedirs(data_dir, exist_ok=True)
             
             # Generate filename with timestamp
